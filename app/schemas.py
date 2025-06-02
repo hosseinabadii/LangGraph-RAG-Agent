@@ -1,4 +1,5 @@
 from enum import StrEnum
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -13,11 +14,13 @@ class ModelOptions(StrEnum):
 class PromptInput(BaseModel):
     question: str
     model: ModelOptions = Field(default=ModelOptions.OPENAI_GPT_4O_MINI)
+    session_id: UUID | None = Field(default=None)
 
 
 class PromptResponse(BaseModel):
     answer: str
     model: ModelOptions
+    session_id: UUID
 
 
 class ResponseFormatter(BaseModel):

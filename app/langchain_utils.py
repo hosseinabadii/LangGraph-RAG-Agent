@@ -1,4 +1,4 @@
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
@@ -8,6 +8,7 @@ from app.schemas import ModelOptions, ResponseFormatter
 qa_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", "You are a helpful AI assistant"),
+        MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
     ]
 )
