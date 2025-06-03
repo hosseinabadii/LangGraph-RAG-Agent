@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -27,3 +28,18 @@ class ResponseFormatter(BaseModel):
     """Always use this tool to structure your response to the user."""
 
     answer: str = Field(description="The answer to the user's question")
+
+
+class DocumentInfo(BaseModel):
+    id: int
+    file_name: str
+    uploaded_at: datetime
+
+
+class DocumentUploadResponse(BaseModel):
+    file_id: int
+    message: str
+
+
+class DocumentDeleteResponse(BaseModel):
+    message: str
