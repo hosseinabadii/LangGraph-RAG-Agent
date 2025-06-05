@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 import httpx
 from config import settings
@@ -13,7 +14,6 @@ logger = logging.getLogger(__file__)
 def get_api_response(question: str, session_id: str | None, model: str) -> dict | None:
     """
     Sends a question to the chat API and retrieves the response.
-    Uses response.raise_for_status() for error handling.
 
     Args:
         question: The question to send to the API.
@@ -23,7 +23,6 @@ def get_api_response(question: str, session_id: str | None, model: str) -> dict 
     Returns:
         A dictionary containing the API response JSON, or None if an error occurs.
     """
-
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     data = {"question": question, "model": model}
 
@@ -46,10 +45,36 @@ def get_api_response(question: str, session_id: str | None, model: str) -> dict 
         return None
 
 
+def get_chat_history(session_id: UUID) -> list:
+    """
+    Retrieves the chat history for a specific session ID.
+
+    Args:
+        session_id: The UUID of the chat session.
+
+    Returns:
+        A list of chat history messages.
+    """
+
+    try:
+        with httpx.Client(timeout=TIMEOUT) as client:
+            response = client.get(f"{BASE_URL}/chat/{session_id}")
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"API response failed with status {e.response.status_code}. Response: {e.response.text}")
+        return []
+    except httpx.RequestError as e:
+        logger.error(f"API call failed with httpx.RequestError: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"API call failed with an unexpected exception: {str(e)}")
+        return []
+
+
 def upload_document(file: UploadedFile) -> dict | None:
     """
     Uploads a document to the API.
-    Uses response.raise_for_status() for error handling.
 
     Args:
         file: The UploadedFile object from Streamlit.
@@ -82,7 +107,6 @@ def upload_document(file: UploadedFile) -> dict | None:
 def list_document() -> list | None:
     """
     Retrieves the list of documents from the API.
-    Uses response.raise_for_status() for error handling.
 
     Returns:
         A list of documents if successful, or None otherwise.
@@ -109,7 +133,6 @@ def list_document() -> list | None:
 def delete_document(file_id: str) -> bool:
     """
     Deletes a document from the API using its file ID.
-    Uses response.raise_for_status() for error handling.
 
     Args:
         file_id: The ID of the file to delete.

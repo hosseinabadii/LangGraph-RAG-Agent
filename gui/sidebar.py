@@ -1,7 +1,8 @@
 from enum import StrEnum
+from uuid import UUID
 
 import streamlit as st
-from api_utils import delete_document, list_document, upload_document
+from api_utils import delete_document, get_chat_history, list_document, upload_document
 
 
 class ModelOptions(StrEnum):
@@ -20,7 +21,43 @@ def update_document_list_state():
         st.session_state["documents"] = documents
 
 
+def create_new_chat():
+    st.session_state["session_id"] = None
+    st.session_state["messages"] = []
+    st.session_state["documents"] = []
+    st.rerun()
+
+
+def update_chat_history(session_id: UUID) -> None:
+    chat_history = get_chat_history(session_id)
+    st.session_state["session_id"] = session_id
+    st.session_state["messages"] = chat_history
+
+
 def display_sidebar():
+    st.sidebar.title("🔗Langchain RAG Chatbot")
+
+    if st.sidebar.button("New Chat"):
+        create_new_chat()
+
+    session_history = st.session_state["session_history"]
+    if session_history:
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            current_session_id_index = 0
+            if st.session_state["session_id"] is not None:
+                current_session_id_index = session_history.index(st.session_state["session_id"])
+            selected_session_id = st.selectbox(
+                label="Select a chat",
+                options=session_history,
+                index=current_session_id_index,
+                key="selected_session",
+                label_visibility="collapsed",
+            )
+        with col2:
+            if st.button("Select Chat"):
+                update_chat_history(selected_session_id)
+
     # Sidebar: Model Selection
     st.sidebar.header("Select Model")
     model_options = [
@@ -29,11 +66,11 @@ def display_sidebar():
         ModelOptions.GPT_4O_MINI,
         ModelOptions.GPT_4O,
     ]
-    st.sidebar.selectbox("Select Model", options=model_options, key="model")
+    st.sidebar.selectbox("Select Model", options=model_options, key="model", label_visibility="collapsed")
 
     # Sidebar: Upload Document
     st.sidebar.header("Upload Document")
-    uploaded_file = st.sidebar.file_uploader("Choose a file", type=["pdf", "docx", "html"])
+    uploaded_file = st.sidebar.file_uploader("Choose a file", type=["pdf", "docx", "txt"], label_visibility="collapsed")
     if uploaded_file is not None:
         if st.sidebar.button("Upload"):
             with st.spinner("Uploading..."):
