@@ -31,6 +31,11 @@ class PromptResponse(BaseModel):
     session_id: UUID
 
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+
 class DocumentInfo(BaseModel):
     id: int
     file_name: str

@@ -1,7 +1,7 @@
 import logging
 import shutil
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
@@ -15,7 +15,14 @@ from app.database import (
     list_document_record,
 )
 from app.langchain_utils import get_retrieval_chain
-from app.schemas import DocumentDeleteResponse, DocumentInfo, DocumentUploadResponse, PromptInput, PromptResponse
+from app.schemas import (
+    DocumentDeleteResponse,
+    DocumentInfo,
+    DocumentUploadResponse,
+    Message,
+    PromptInput,
+    PromptResponse,
+)
 
 logger = logging.getLogger(__name__)
 api_router = APIRouter()
@@ -39,6 +46,11 @@ async def chat(prompt_input: PromptInput):
     logger.info(f"Session ID: {str(session_id)}, AI Response: {str(answer)[:100]}...")
 
     return {"answer": answer, "metadata": metadata, "model": prompt_input.model, "session_id": session_id}
+
+
+@api_router.get("/chat/{session_id}", response_model=list[Message])
+async def fetch_chat_history(session_id: UUID):
+    return await get_chat_history(str(session_id))
 
 
 @api_router.get("/documents", response_model=list[DocumentInfo])
