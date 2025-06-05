@@ -194,3 +194,5 @@ cython_debug/
 .cursorindexingignore
 logs
 *.db
+chroma_db/
+tmp/

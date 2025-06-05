@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
+from app.chroma_utils import DOCUMENT_LOADER_MAPPING, delete_document_from_chroma, index_document_to_chroma
 from app.config import BASE_DIR
 from app.database import (
     delete_document_record,
@@ -13,15 +14,8 @@ from app.database import (
     insert_document_record,
     list_document_record,
 )
-from app.langchain_utils import get_chain
-from app.schemas import (
-    DocumentDeleteResponse,
-    DocumentInfo,
-    DocumentUploadResponse,
-    PromptInput,
-    PromptResponse,
-    ResponseFormatter,
-)
+from app.langchain_utils import get_retrieval_chain
+from app.schemas import DocumentDeleteResponse, DocumentInfo, DocumentUploadResponse, PromptInput, PromptResponse
 
 logger = logging.getLogger(__name__)
 api_router = APIRouter()
@@ -36,54 +30,68 @@ async def chat(prompt_input: PromptInput):
         session_id = uuid4()
 
     chat_history = await get_chat_history(str(session_id))
-    chain = get_chain(prompt_input.model)
-    response: ResponseFormatter = chain.invoke({"input": prompt_input.question, "chat_history": chat_history})
-    answer = response.answer
+    chain = get_retrieval_chain(prompt_input.model)
+    response: dict = chain.invoke({"input": prompt_input.question, "chat_history": chat_history})
+    answer = response.get("answer", "No answer found")
+    metadata = [item.metadata for item in response.get("context", [])]
 
     await insert_chat_history(str(session_id), prompt_input.question, answer, prompt_input.model)
-    logger.info(f"Session ID: {str(session_id)}, AI Response: {answer[:100]}...")
+    logger.info(f"Session ID: {str(session_id)}, AI Response: {str(answer)[:100]}...")
 
-    return PromptResponse(answer=response.answer, model=prompt_input.model, session_id=session_id)
+    return {"answer": answer, "metadata": metadata, "model": prompt_input.model, "session_id": session_id}
 
 
 @api_router.get("/documents", response_model=list[DocumentInfo])
-async def list_document():
+async def list_documents():
     return await list_document_record()
 
 
 @api_router.post("/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(file: UploadFile):
-    allowd_extensions = [".pdf", ".docx", ".txt"]
-
     if file.filename is None:
         logger.error("No file uploaded.")
         raise HTTPException(status_code=400, detail="No file uploaded.")
 
+    allowd_extensions = list(DOCUMENT_LOADER_MAPPING.keys())
+    message = f"Unsupported file type. Allowed types: {', '.join(allowd_extensions)}"
     if Path(file.filename).suffix not in allowd_extensions:
-        logger.error(f"Unsupported file type. Allowed types: {', '.join(allowd_extensions)}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type. Allowed types: {', '.join(allowd_extensions)}",
-        )
+        logger.error(message)
+        raise HTTPException(status_code=400, detail=message)
 
     TEMP_DIR = BASE_DIR / "tmp"
     if not TEMP_DIR.exists():
         TEMP_DIR.mkdir()
     temp_file_path = TEMP_DIR / file.filename
+    file_id = None
 
     try:
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+        logger.info(f"File '{file.filename}' saved temporarily to '{temp_file_path}'.")
 
         file_id = await insert_document_record(file.filename)
         if file_id is None:
-            logger.error("Failed to insert document record into database.")
-            raise HTTPException(status_code=500, detail="Failed to insert document record into database.")
+            logger.error(f"Failed to insert document record for '{file.filename}' into database.")
+            raise HTTPException(status_code=500, detail="Failed to create document record in database.")
+        logger.info(f"Document record inserted for '{file.filename}' with file_id: {file_id}.")
 
-        return {"message": f"File {file.filename} uploaded successfully.", "file_id": file_id}
+        index_document_to_chroma(temp_file_path, file_id)
+        logger.info(f"File '{file.filename}' (file_id: {file_id}) successfully indexed to Chroma.")
+
+        return {"message": f"File {file.filename} uploaded and indexed successfully.", "file_id": file_id}
     except Exception as e:
-        logger.error(f"Failed to save file to disk: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to save file to disk")
+        logger.error(f"An unexpected error occurred during upload of '{file.filename}': {e}", exc_info=True)
+        if file_id is not None:
+            try:
+                delete_document_from_chroma(file_id)
+                logger.info(f"Attempted cleanup of Chroma for file_id: {file_id} after unexpected error.")
+            except Exception as chroma_clean_err:
+                logger.error(
+                    f"Failed to cleanup Chroma for file_id: {file_id} during error handling: {chroma_clean_err}"
+                )
+            await delete_document_record(file_id)
+            logger.info(f"Rolled back database record for file_id: {file_id} due to unexpected error.")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred while uploading '{file.filename}'.")
     finally:
         if temp_file_path.exists():
             temp_file_path.unlink()
@@ -91,10 +99,25 @@ async def upload_document(file: UploadFile):
 
 @api_router.delete("/documents/{file_id}", response_model=DocumentDeleteResponse)
 async def delete_document(file_id: int):
+    logger.info(f"Attempting to delete document with file_id: {file_id}.")
+    try:
+        delete_document_from_chroma(file_id)
+        logger.info(f"Successfully deleted document chunks for file_id: {file_id} from Chroma.")
+    except Exception as e:
+        logger.error(f"Unexpected error deleting document {file_id} from Chroma: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while deleting document {file_id} from vector store.",
+        )
+
     db_delete_success = await delete_document_record(file_id)
     if not db_delete_success:
+        logger.warning(
+            f"Document with file_id: {file_id} not found in database or failed to delete (already deleted from Chroma)."
+        )
         raise HTTPException(
             status_code=404,
             detail=f"Document with ID {file_id} not found or could not be deleted.",
         )
-    return {"message": f"Document with ID {file_id} deleted successfully from database."}
+
+    return {"message": f"Document with ID {file_id} deleted successfully from chroma and database."}

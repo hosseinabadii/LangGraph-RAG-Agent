@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     base_url: str
     api_key: SecretStr = Field(alias="OPENAI_API_KEY")
     db_path: str = str(BASE_DIR / "rag.db")
+    embedding_base_url: str
+    embedding_model_name: str
 
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env")
 

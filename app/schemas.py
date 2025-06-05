@@ -18,16 +18,17 @@ class PromptInput(BaseModel):
     session_id: UUID | None = Field(default=None)
 
 
+class DocumentMetadata(BaseModel):
+    title: str = Field(default="Not Available")
+    page_label: str = Field(default="Not Available")
+    file_id: int | None = Field(default=None)
+
+
 class PromptResponse(BaseModel):
     answer: str
+    metadata: list[DocumentMetadata]
     model: ModelOptions
     session_id: UUID
-
-
-class ResponseFormatter(BaseModel):
-    """Always use this tool to structure your response to the user."""
-
-    answer: str = Field(description="The answer to the user's question")
 
 
 class DocumentInfo(BaseModel):
