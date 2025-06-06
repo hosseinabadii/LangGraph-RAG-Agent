@@ -6,8 +6,6 @@ from api_utils import delete_document, get_chat_history, list_document, upload_d
 
 
 class ModelOptions(StrEnum):
-    OPENAI_GPT_4O_MINI = "openai/gpt-4o-mini"
-    OPENAI_GPT_4O = "openai/gpt-4o"
     GPT_4O_MINI = "gpt-4o-mini"
     GPT_4O = "gpt-4o"
 
@@ -60,12 +58,7 @@ def display_sidebar():
 
     # Sidebar: Model Selection
     st.sidebar.header("Select Model")
-    model_options = [
-        ModelOptions.OPENAI_GPT_4O_MINI,
-        ModelOptions.OPENAI_GPT_4O,
-        ModelOptions.GPT_4O_MINI,
-        ModelOptions.GPT_4O,
-    ]
+    model_options = [ModelOptions.GPT_4O_MINI, ModelOptions.GPT_4O]
     st.sidebar.selectbox("Select Model", options=model_options, key="model", label_visibility="collapsed")
 
     # Sidebar: Upload Document

@@ -12,11 +12,15 @@ from app.config import BASE_DIR, settings
 
 logger = logging.getLogger(__name__)
 
-embeddings = OpenAIEmbeddings(
-    model=settings.embedding_model_name,
-    base_url=settings.embedding_base_url,
-    api_key=settings.api_key,
-)
+if settings.api_key.get_secret_value().startswith("ghp_"):
+    logger.info("Using GitHub Personal Access Token")
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-large",
+        base_url="https://models.inference.ai.azure.com",
+        api_key=settings.api_key,
+    )
+else:
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-large", api_key=settings.api_key)
 
 vector_store = Chroma(
     collection_name="my_documents",
