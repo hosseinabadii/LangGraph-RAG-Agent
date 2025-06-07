@@ -22,7 +22,6 @@ def update_document_list_state():
 def create_new_chat():
     st.session_state["session_id"] = None
     st.session_state["messages"] = []
-    st.session_state["documents"] = []
     st.rerun()
 
 
@@ -83,19 +82,18 @@ def display_sidebar():
         with st.spinner("Refreshing..."):
             update_document_list_state()
 
-    if "documents" not in st.session_state:
-        update_document_list_state()
-
     documents = st.session_state["documents"]
     if documents:
         for number, doc in enumerate(documents, start=1):
             st.sidebar.write(f"{number}. {doc['file_name']}")
 
         # DELETE DOCUMENT
+        st.sidebar.header("Select a document to delete")
         selected_file_id: str = st.sidebar.selectbox(
             "Select a document to delete",
             options=[doc["id"] for doc in documents],
             format_func=lambda file_id: next(doc for doc in documents if doc["id"] == file_id)["file_name"],
+            label_visibility="collapsed",
         )
         if st.sidebar.button("Delete Selected Document"):
             with st.spinner("Deleting..."):
