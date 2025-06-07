@@ -88,7 +88,7 @@ def upload_document(file: UploadedFile) -> dict | None:
         files = {"file": (file.name, file.getvalue(), file.type)}
 
         with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.post(f"{BASE_URL}//documents/uploadt", files=files)
+            response = client.post(f"{BASE_URL}/documents/upload", files=files)
             response.raise_for_status()
 
         logger.info(f"Successfully uploaded file: {file.name}")
