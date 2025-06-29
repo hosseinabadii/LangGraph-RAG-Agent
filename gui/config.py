@@ -21,7 +21,6 @@ logging.basicConfig(
 class Settings:
     base_dir: Path = BASE_DIR
     base_url: str = "http://localhost:8000/api/v1"
-    timeout: int = 60
 
 
 settings = Settings()

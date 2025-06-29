@@ -1,12 +1,11 @@
 import logging
 from uuid import UUID
 
-import httpx
+import requests
 from config import settings
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 BASE_URL = settings.base_url
-TIMEOUT = settings.timeout
 
 logger = logging.getLogger(__file__)
 
@@ -30,14 +29,13 @@ def get_api_response(question: str, session_id: str | None, model: str) -> dict 
         data["session_id"] = session_id
 
     try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.post(f"{BASE_URL}/chat", headers=headers, json=data)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as e:
+        response = requests.post(f"{BASE_URL}/chat", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as e:
         logger.error(f"API response failed with status {e.response.status_code}. Response: {e.response.text}")
         return None
-    except httpx.RequestError as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"API call failed with httpx.RequestError: {str(e)}")
         return None
     except Exception as e:
@@ -57,14 +55,13 @@ def get_chat_history(session_id: UUID) -> list:
     """
 
     try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.get(f"{BASE_URL}/chat/{session_id}")
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as e:
+        response = requests.get(f"{BASE_URL}/chat/{session_id}")
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as e:
         logger.error(f"API response failed with status {e.response.status_code}. Response: {e.response.text}")
         return []
-    except httpx.RequestError as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"API call failed with httpx.RequestError: {str(e)}")
         return []
     except Exception as e:
@@ -87,16 +84,15 @@ def upload_document(file: UploadedFile) -> dict | None:
     try:
         files = {"file": (file.name, file.getvalue(), file.type)}
 
-        with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.post(f"{BASE_URL}/documents/upload", files=files)
-            response.raise_for_status()
+        response = requests.post(f"{BASE_URL}/documents/upload", files=files)
+        response.raise_for_status()
 
         logger.info(f"Successfully uploaded file: {file.name}")
         return response.json()
-    except httpx.HTTPStatusError as e:
+    except requests.exceptions.HTTPError as e:
         logger.error(f"Upload failed with status {e.response.status_code}. Response: {e.response.text}")
         return None
-    except httpx.RequestError as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"File upload failed with httpx.RequestError: {str(e)}")
         return None
     except Exception as e:
@@ -113,16 +109,15 @@ def list_document() -> list | None:
     """
 
     try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.get(f"{BASE_URL}/documents")
-            response.raise_for_status()
+        response = requests.get(f"{BASE_URL}/documents")
+        response.raise_for_status()
 
         logger.info("Successfully retrieved document list")
         return response.json()
-    except httpx.HTTPStatusError as e:
+    except requests.exceptions.HTTPError as e:
         logger.error(f"List documents failed with status {e.response.status_code}. Response: {e.response.text}")
         return None
-    except httpx.RequestError as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"List documents failed with httpx.RequestError: {str(e)}")
         return None
     except Exception as e:
@@ -143,16 +138,15 @@ def delete_document(file_id: str) -> bool:
 
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     try:
-        with httpx.Client(timeout=TIMEOUT) as client:
-            response = client.delete(f"{BASE_URL}/documents/{file_id}", headers=headers)
-            response.raise_for_status()
+        response = requests.delete(f"{BASE_URL}/documents/{file_id}", headers=headers)
+        response.raise_for_status()
 
         logger.info(f"Successfully deleted document with ID: {file_id}")
         return True
-    except httpx.HTTPStatusError as e:
+    except requests.exceptions.HTTPError as e:
         logger.error(f"Delete document failed with status {e.response.status_code}. Response: {e.response.text}")
         return False
-    except httpx.RequestError as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Delete document failed with httpx.RequestError: {str(e)}")
         return False
     except Exception as e:
