@@ -1,157 +1,202 @@
-# 🤖 Langchain-RAG-Chatbot
+# 🤖 LangGraph RAG Agent
 
-A powerful and context-aware RAG (Retrieval-Augmented Generation) chatbot built with [Langchain](https://python.langchain.com/docs/get_started/introduction), [ChromaDB](https://docs.trychroma.com/), and [FastAPI](https://fastapi.tiangolo.com/), featuring a modern [Streamlit](https://docs.streamlit.io/) GUI interface.
+An agentic Retrieval-Augmented Generation (RAG) system built with **FastAPI** and **LangGraph**, featuring streaming responses, a **PostgreSQL + pgvector** vector store, and a modern **Streamlit** UI. The system supports user authentication, threaded conversations with persistent memory via LangGraph Postgres checkpointers, and tool-augmented reasoning (document retrieval + web search).
 
 ## 🚀 Features
 
-- **Context-Aware Conversations**: Maintains chat history and context for more coherent and relevant responses
-- **Session Management**: Unique session IDs for each chat conversation
-- **Vector Database**: Efficient document storage and retrieval using ChromaDB
-- **Modern GUI**: User-friendly Streamlit interface for seamless interaction
-- **RESTful API**: FastAPI backend with comprehensive API documentation
-- **Multiple LLM Support**: Flexible model selection with OpenAI integration
-- **Document Processing**: Efficient document ingestion and vectorization
-- **Asynchronous Architecture**: Built with FastAPI for high performance
-- **SQLite Database**: Persistent storage for chat history and session management
+- **Agentic RAG with LangGraph**: ReAct-style agent with tools for document retrieval and web search
+- **Streaming responses end-to-end**: Real-time token streaming from backend to the Streamlit UI
+- **Threaded conversations**: Per-user threads with persistent histories stored via Postgres checkpointers
+- **PostgreSQL + pgvector**: Vector storage and semantic retrieval over user-uploaded documents
+- **Authentication and JWT**: Signup, login, refresh; per-user isolation for threads and docs
+- **Document ingestion**: PDF, DOCX, and TXT support with chunking and async indexing
+- **Tooling**: Built-in `retrieve_user_documents` and Tavily web search integration
+- **Async-first backend**: FastAPI + SQLAlchemy 2.0 async, production-ready logging and healthchecks
 
-## 💻 Technologies Used
+## 💻 Tech Stack
 
-- **Backend**: FastAPI, Langchain
-- **Vector Database**: ChromaDB
-- **Database**: SQLite
+- **Backend**: FastAPI, LangGraph, LangChain, SQLAlchemy, Pydantic v2
+- **Vector Store**: PostgreSQL + pgvector (via `langchain-postgres`)
+- **Checkpointer**: LangGraph Postgres Checkpointer (async)
 - **Frontend**: Streamlit
-- **LLM Integration**: OpenAI API
-- **Document Processing**: Langchain Document Loaders
+- **LLM/Embeddings**: OpenAI-compatible models (configurable base URLs)
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have the following installed:
+- Python 3.12+
+- Docker and Docker Compose (recommended for Postgres + full stack)
 
-- **Python 3.12+** - Required for async features and modern Python syntax
-- **pip** - Python package installer
-- **Git** (optional) - For cloning the repository
+## 📦 Quick Start (Docker Compose)
 
-## 📦 Setup
-
-1. **Clone the repository**
-
+1. Copy environment template and edit values:
    ```bash
-   git clone [repository-url]
-   cd Langchain-RAG-Chatbot
+   cp env.example .env
    ```
-
-2. **Create and activate a virtual environment**
-
-   - Windows:
-     ```bash
-     python -m venv venv
-     venv\Scripts\activate
-     ```
-   - Linux/macOS:
-     ```bash
-     python3 -m venv venv
-     source venv/bin/activate
-     ```
-
-3. **Install dependencies**
-
+2. Start the full stack:
    ```bash
-   pip install -r requirements.txt
+   docker compose up --build
    ```
 
-4. **Set environment variables**
-   Rename `env.example` to `.env` and update with your OpenAI API key
+Services:
+- Backend API: `http://localhost:8000/api/v1`
+- API Docs: `http://localhost:8000/api/v1/docs`
+- Frontend UI: `http://localhost:8501`
 
-   ```
-   OPENAI_API_KEY=your_api_key_here
-   ```
+Notes:
+- The `pgvector/pgvector:pg16` image includes the `vector` extension. If you use your own Postgres, ensure `CREATE EXTENSION IF NOT EXISTS vector;` is enabled.
 
-5. **Run the application**
+## 🧰 Local Development
 
-   Start the FastAPI backend:
+### 1) Backend (FastAPI)
 
-   ```bash
-   uvicorn app.main:app --reload --reload-dir ./app
-   ```
+```bash
+cd backend
+python -m venv .venv
+.venv/Scripts/activate     # Windows
+# source .venv/bin/activate  # Linux/macOS
+pip install -r requirements.txt
+```
 
-   In a separate terminal, start the Streamlit GUI:
+Ensure a Postgres instance is running with pgvector. Example (Docker):
+```bash
+docker run --name langgraph_postgres -p 5432:5432 \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=test -e POSTGRES_DB=langgraph_db \
+  -d pgvector/pgvector:pg16
+```
 
-   ```bash
-   streamlit run gui/main.py
-   ```
+Run the API:
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --reload-dir ./app
+```
 
-## Screenshots
+### 2) Frontend (Streamlit)
 
-![home](./screenshots/home.png)
-
-## 📚 API Documentation
-
-The API documentation is available at:
-
-- Swagger UI: `http://localhost:8000/api/v1/docs`
-- ReDoc: `http://localhost:8000/api/v1/redoc`
-
-## 🔄 RAG Architecture
-
-The system implements a sophisticated RAG pipeline:
-
-1. **Document Processing**:
-
-   - Document ingestion and chunking
-   - Vectorization using embeddings
-   - Storage in ChromaDB
-
-2. **Retrieval System**:
-
-   - Context-aware retrieval using chat history
-   - Semantic search with configurable k-nearest neighbors
-   - Efficient vector similarity search
-
-3. **Generation Pipeline**:
-
-   - History-aware question reformulation
-   - Context integration with retrieved documents
-   - LLM-powered response generation
-
-4. **Session Management**:
-   - Unique session IDs for each conversation
-   - Persistent chat history
-   - Context maintenance across sessions
-
-## 🎯 Key Components
-
-### Backend (FastAPI)
-
-- RESTful API endpoints for chat and document management
-- Asynchronous request handling
-- Session management and persistence
-- Document processing and vectorization
-
-### Vector Store (ChromaDB)
-
-- Efficient document storage and retrieval
-- Vector similarity search
-- Persistent storage of embeddings
-
-### Frontend (Streamlit)
-
-- Modern and intuitive chat interface
-- Real-time chat updates
-- Document upload and management
-- Session management UI
+```bash
+cd frontend
+python -m venv .venv
+.venv/Scripts/activate     # Windows
+# source .venv/bin/activate  # Linux/macOS
+pip install -r requirements.txt
+streamlit run gui/main.py
+```
 
 ## 🔧 Environment Variables
 
-Required environment variables in `.env`:
+Create a project-root `.env` (both backend and frontend read from it). Key settings:
 
-- `OPENAI_API_KEY`: Your OpenAI API key
+Core LLM settings:
+- `OPENAI_API_KEY`
+- `MODEL_PROVIDER` (e.g., `openai`)
+- `MODEL_NAMES` (JSON list, e.g., `["gpt-4o", "gpt-4o-mini"]`)
+- `MODEL_BASE_URL` (optional for OpenAI-compatible endpoints)
+- `EMBEDDINGS_MODEL_NAME` (e.g., `text-embedding-3-large`)
+- `EMBEDDINGS_BASE_URL` (optional)
+- `TAVILY_API_KEY` (for web search tool)
+
+Auth and tokens:
+- `TOKEN_BEARER_URL` (default `/api/v1/auth/login`)
+- `JWT_SECRET` (use a strong, random value)
+- `JWT_ALGORITHM` (e.g., `HS256`)
+- `ACCESS_TOKEN_EXPIRY_MINS` (e.g., `1440`)
+- `REFRESH_TOKEN_EXPIRY_DAYS` (e.g., `1`)
+
+Database and vector store:
+- `POSTGRES_HOST` (e.g., `127.0.0.1` or `postgres` in Docker)
+- `POSTGRES_PORT` (e.g., `5432`)
+- `POSTGRES_USER` (e.g., `postgres`)
+- `POSTGRES_PASSWORD` (e.g., `test`)
+- `POSTGRES_DATABASE` (e.g., `langgraph_db`)
+- `PGVECTOR_COLLECTION_NAME` (e.g., `my_collection`)
+
+Frontend:
+- `BACKEND_BASE_URL` (e.g., `http://127.0.0.1:8000/api/v1` when running locally)
+
+Example values are provided in `env.example`.
+
+## 🧩 API Overview
+
+Base URL: `/api/v1`
+
+Auth:
+- `POST /auth/signup`
+- `POST /auth/login`
+- `GET /auth/logout`
+- `GET /auth/refresh-token`
+
+Users:
+- `GET /users/me`
+- `PUT /users/user-profile/{user_id}`
+- `DELETE /users/user-profile/{user_id}`
+
+Threads:
+- `POST /threads/` (create)
+- `GET /threads/` (list)
+- `GET /threads/{thread_id}` (get)
+- `PATCH /threads/{thread_id}` (update title)
+- `DELETE /threads/{thread_id}` (delete + cascade cleanup of memory and vectors)
+
+Documents:
+- `GET /documents/{thread_id}` (list)
+- `POST /documents/upload/{thread_id}` (upload + async index)
+- `DELETE /documents/{document_id}` (remove + delete chunks from pgvector)
+
+Chat and streaming:
+- `POST /chat/` (public streaming chat; no tools or memory)
+- `POST /chat/{thread_id}` (authenticated streaming agent with tools + memory)
+- `GET /chat/{thread_id}` (retrieve persisted chat history)
+
+API docs:
+- Swagger UI: `http://localhost:8000/api/v1/docs`
+- ReDoc: `http://localhost:8000/api/v1/redoc`
+
+## 📡 Streaming Protocol
+
+Both chat endpoints stream newline-delimited JSON events. Event types include:
+- `llm_chunk`: incremental model output
+- `tool_call`: tool name and arguments when the agent invokes a tool
+- `tool_result`: tool output returned to the agent
+
+Example stream (JSON lines):
+
+```json
+{"type":"tool_call","name":"retrieve_user_documents","args":{"query":"policy overview"}}
+{"type":"tool_result","name":"retrieve_user_documents","content":"...retrieved text..."}
+{"type":"llm_chunk","content":"Here is a summary of your policy..."}
+```
+
+## 🔄 Architecture
+
+1. Ingestion & Indexing
+   - PDF, DOCX, TXT loaders; chunking via `RecursiveCharacterTextSplitter`
+   - Async indexing into pgvector using `langchain-postgres` with JSONB metadata
+
+2. Retrieval
+   - Semantic similarity search filtered by `thread_id` and `user_id`
+   - Tool: `retrieve_user_documents` leverages the vector store retriever
+
+3. Agent & Generation
+   - LangGraph ReAct agent (`create_react_agent`) with tools (documents + Tavily)
+   - Configurable models via `MODEL_NAMES`
+   - End-to-end streaming
+
+4. Memory
+   - LangGraph Postgres checkpointer (async) stores per-thread chat histories
+   - Thread deletion cleans up checkpointer state and related vector chunks
+
+## 🖼️ Screenshots
+
+### Unauthenticated Home Page
+![home](./screenshots/home.png)
+
+### Authenticated Home Page
+![home-authenticated](./screenshots/home-authenticated.png)
 
 ## 📝 License
 
-This project is licensed under the [MIT License](./LICENSE).
+Licensed under the [MIT License](./LICENSE).
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please open an issue or submit a PR.
 
-**Note**: This project is inspired by a YouTube tutorial series by **Pradip Nichite**, available [here](https://www.youtube.com/watch?v=38aMTXY2usU).
+

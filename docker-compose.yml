@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: langgraph_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test}
+      POSTGRES_DB: ${POSTGRES_DATABASE:-langgraph_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DATABASE:-langgraph_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - langgraph_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: langgraph_backend
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-openai}
+      - MODEL_NAMES=${MODEL_NAMES:-["gpt-4o", "gpt-4o-mini"]}
+      - MODEL_BASE_URL=${MODEL_BASE_URL}
+      - EMBEDDINGS_MODEL_NAME=${EMBEDDINGS_MODEL_NAME:-text-embedding-3-large}
+      - EMBEDDINGS_BASE_URL=${EMBEDDINGS_BASE_URL}
+      - TOKEN_BEARER_URL=${TOKEN_BEARER_URL:-/api/v1/auth/login}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRY_MINS=${ACCESS_TOKEN_EXPIRY_MINS:-1440}
+      - REFRESH_TOKEN_EXPIRY_DAYS=${REFRESH_TOKEN_EXPIRY_DAYS:-1}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-test}
+      - POSTGRES_DATABASE=${POSTGRES_DATABASE:-langgraph_db}
+      - PGVECTOR_COLLECTION_NAME=${PGVECTOR_COLLECTION_NAME:-my_collection}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - langgraph_network
+    restart: on-failure:3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: langgraph_frontend
+    environment:
+      - BACKEND_BASE_URL=http://backend:8000/api/v1
+      # REMOVED: ${BACKEND_BASE_URL:-http://backend:8000/api/v1}
+      - MODEL_NAMES=${MODEL_NAMES:-["gpt-4o", "gpt-4o-mini"]}
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - langgraph_network
+    restart: on-failure:3
+
+volumes:
+  postgres_data:
+
+networks:
+  langgraph_network:
+    driver: bridge
